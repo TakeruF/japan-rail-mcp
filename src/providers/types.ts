@@ -9,22 +9,22 @@ import type {
 
 export interface SearchStationsInput {
   query: string;
-  limit?: number;
+  limit?: number | undefined;
 }
 
 export interface SearchTrainsInput {
   fromStationId: string;
   toStationId: string;
   date: string;
-  departureAfter?: string;
-  departureBefore?: string;
-  limit?: number;
-  serviceTypes?: string[];
-  operators?: string[];
+  departureAfter?: string | undefined;
+  departureBefore?: string | undefined;
+  limit?: number | undefined;
+  serviceTypes?: string[] | undefined;
+  operators?: string[] | undefined;
 }
 
 export interface SearchJourneysInput extends SearchTrainsInput {
-  includeNonShinkansen?: boolean;
+  includeNonShinkansen?: boolean | undefined;
 }
 
 export interface TrainDetailsInput {
