@@ -12,6 +12,54 @@ const now = () => new Date('2026-08-25T04:00:00Z');
 describe('Ekispert Shinkansen provider', () => {
   const stations = new StaticShinkansenStationProvider();
 
+  it.each([
+    ['jp:station:tokyo', 'jp:station:shin-osaka', '東海道新幹線のぞみ215号', '215'],
+    ['jp:station:shin-osaka', 'jp:station:hakata', '山陽新幹線のぞみ15号', '15'],
+    ['jp:station:tokyo', 'jp:station:sendai', '東北新幹線はやぶさ31号', '31'],
+  ])(
+    'searches the priority route %s → %s',
+    async (fromStationId, toStationId, lineName, trainNumber) => {
+      const routeFixture = {
+        ResultSet: {
+          Course: {
+            Price: [
+              { kind: 'FareSummary', Oneway: '10000' },
+              { kind: 'ChargeSummary', Oneway: '5000' },
+            ],
+            Route: {
+              transferCount: '0',
+              timeOnBoard: '120',
+              Line: {
+                Name: lineName,
+                Number: trainNumber,
+                Type: { text: 'train', detail: 'shinkansen' },
+                DepartureState: { Datetime: '2026-08-26T10:00:00+09:00' },
+                ArrivalState: { Datetime: '2026-08-26T12:00:00+09:00' },
+              },
+            },
+          },
+        },
+      };
+      const provider = new EkispertProvider(stations, {
+        apiKey: 'test-key',
+        now,
+        fetch: async () => Response.json(routeFixture),
+      });
+      const results = await provider.searchTrains({
+        fromStationId,
+        toStationId,
+        date: '2026-08-26',
+      });
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        origin: { id: fromStationId },
+        destination: { id: toStationId },
+        transferCount: 0,
+        serviceType: 'shinkansen',
+      });
+    },
+  );
+
   it('parses only direct Shinkansen services with JPY fares and explicit timestamps', async () => {
     const from = await stations.getStation('jp:station:tokyo');
     const to = await stations.getStation('jp:station:shin-osaka');
