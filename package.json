@@ -1,0 +1,61 @@
+{
+  "name": "japan-rail-mcp",
+  "version": "0.1.0",
+  "description": "Read-only MCP server for Japanese railway data, with a Shinkansen-first MVP.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "japan-rail-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "japan-rail",
+    "shinkansen",
+    "railway"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TakeruF/japan-rail-mcp.git"
+  },
+  "homepage": "https://github.com/TakeruF/japan-rail-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/TakeruF/japan-rail-mcp/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.3",
+    "eslint": "^10.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.23.12",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  }
+}
