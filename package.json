@@ -1,6 +1,7 @@
 {
   "name": "japan-rail-mcp",
   "version": "0.1.0",
+  "mcpName": "io.github.takeruf/japan-rail-mcp",
   "description": "Read-only MCP server for Japanese railway data, with a Shinkansen-first MVP.",
   "license": "MIT",
   "type": "module",
@@ -9,6 +10,7 @@
   },
   "files": [
     "dist",
+    "docs",
     "README.md",
     "LICENSE",
     "SECURITY.md"
@@ -18,7 +20,8 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "lint": "eslint .",
     "format": "prettier --check .",
