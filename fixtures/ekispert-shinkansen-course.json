@@ -1,0 +1,95 @@
+{
+  "ResultSet": {
+    "apiVersion": "1.27.0.0",
+    "engineVersion": "fixture",
+    "Course": [
+      {
+        "Price": [
+          { "kind": "FareSummary", "Oneway": "8910" },
+          { "kind": "ChargeSummary", "Oneway": "5810" },
+          {
+            "kind": "Charge",
+            "selected": "true",
+            "Type": "Reserved",
+            "Name": "指定席",
+            "Oneway": "5810",
+            "SeatType": { "Type": "Reserved", "Name": "指定席" }
+          },
+          {
+            "kind": "Charge",
+            "selected": "false",
+            "Type": "Green",
+            "Name": "グリーン",
+            "Oneway": "10680",
+            "SeatType": { "Type": "Green", "Name": "グリーン" }
+          }
+        ],
+        "Route": {
+          "timeOnBoard": "147",
+          "transferCount": "0",
+          "Point": [
+            { "Station": { "code": "22828", "Name": "東京", "Type": "train" } },
+            { "Station": { "code": "25978", "Name": "新大阪", "Type": "train" } }
+          ],
+          "Line": {
+            "Name": "東海道新幹線のぞみ215号",
+            "Number": "215",
+            "Type": { "text": "train", "detail": "shinkansen" },
+            "timeOnBoard": "147",
+            "Corporation": { "Name": "ＪＲ東海" },
+            "DepartureState": { "Datetime": "2026-08-26T12:03:00+09:00" },
+            "ArrivalState": { "Datetime": "2026-08-26T14:30:00+09:00" },
+            "Stop": [
+              {
+                "Point": { "Station": { "code": "25077", "Name": "名古屋" } },
+                "ArrivalState": { "Datetime": "13:39:00+09:00" },
+                "DepartureState": { "Datetime": "13:41:00+09:00" }
+              },
+              {
+                "Point": { "Station": { "code": "25647", "Name": "京都" } },
+                "ArrivalState": { "Datetime": "14:15:00+09:00" },
+                "DepartureState": { "Datetime": "14:17:00+09:00" }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "Price": [
+          { "kind": "FareSummary", "Oneway": "8910" },
+          { "kind": "ChargeSummary", "Oneway": "5490" },
+          {
+            "kind": "Charge",
+            "selected": "true",
+            "Type": "Reserved",
+            "Name": "指定席",
+            "Oneway": "5490"
+          }
+        ],
+        "Route": {
+          "timeOnBoard": "174",
+          "transferCount": "0",
+          "Line": {
+            "Name": "東海道新幹線ひかり649号",
+            "Number": "649",
+            "Type": { "text": "train", "detail": "shinkansen" },
+            "timeOnBoard": "174",
+            "Corporation": { "Name": "ＪＲ東海" },
+            "DepartureState": { "Datetime": "2026-08-26T12:33:00+09:00" },
+            "ArrivalState": { "Datetime": "2026-08-26T15:27:00+09:00" }
+          }
+        }
+      },
+      {
+        "Route": {
+          "timeOnBoard": "180",
+          "transferCount": "1",
+          "Line": [
+            { "Name": "ＪＲ東海道線", "Type": "train" },
+            { "Name": "東海道新幹線こだま号", "Type": "train" }
+          ]
+        }
+      }
+    ]
+  }
+}
