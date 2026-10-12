@@ -1,0 +1,13 @@
+{
+  "defaults": {
+    "boardingBufferMinutes": 10,
+    "exitBufferMinutes": 5,
+    "seatClassId": "reserved"
+  },
+  "stations": {
+    "jp:station:tokyo": {
+      "boardingBufferMinutes": 15,
+      "exitBufferMinutes": 10
+    }
+  }
+}

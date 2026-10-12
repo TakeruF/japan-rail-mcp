@@ -32,15 +32,19 @@ must be resolved by the MCP client; the server requires `YYYY-MM-DD`.
 
 ## MCP tools
 
-| Tool                  | When to use it                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| `get_provider_status` | Check configured providers and capability boundaries before a live query.                  |
-| `search_stations`     | Resolve a name to one or more canonical `jp:station:*` IDs. Use before train search.       |
-| `search_trains`       | Search direct Shinkansen services between two resolved station IDs.                        |
-| `get_train_details`   | Read the ordered stops for an opaque `trainId` returned by `search_trains`.                |
-| `get_availability`    | Check provider support; currently returns `status: "unsupported"` without invented counts. |
-| `compare_trains`      | Sort the same structured direct-train candidates without a subjective recommendation.      |
-| `search_journeys`     | Reserved for transfer routes; returns a structured unsupported error in v0.1.              |
+| Tool                       | When to use it                                                                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `get_provider_status`      | Check configured providers and capability boundaries before a live query.                                                          |
+| `search_stations`          | Resolve a name to one or more canonical `jp:station:*` IDs. Use before train search.                                               |
+| `search_trains`            | Search direct Shinkansen services between two resolved station IDs.                                                                |
+| `get_train_details`        | Read the ordered stops for an opaque `trainId` returned by `search_trains`.                                                        |
+| `get_availability`         | Check provider support; currently returns `status: "unsupported"` without invented counts.                                         |
+| `compare_trains`           | Sort the same structured direct-train candidates without a subjective recommendation.                                              |
+| `search_journeys`          | Reserved for transfer routes; returns a structured unsupported error in v0.1.                                                      |
+| `get_station_details`      | Read exact bundled station metadata by ID without a network request.                                                               |
+| `evaluate_train_options`   | Re-evaluate recently searched trains against personal timing, budget, and seat-class constraints without another provider request. |
+| `plan_shinkansen_trip`     | Search once and compare candidates using saved or explicitly supplied personal constraints.                                        |
+| `get_personal_preferences` | Read saved planning defaults and station-specific allowances without network access.                                               |
 
 Every tool is annotated read-only, non-destructive, and idempotent. Every successful tool result
 includes both human-readable JSON text and MCP `structuredContent` validated against an output
@@ -154,6 +158,107 @@ A normalized fare is numeric and currency-safe:
 ```
 
 `formatted` is display-only; clients should use `amount` and `currency` for comparison.
+
+### One-call personal trip planning
+
+Resolve canonical station IDs with `search_stations`, then call `plan_shinkansen_trip`:
+
+```json
+{
+  "fromStationId": "jp:station:tokyo",
+  "toStationId": "jp:station:shin-osaka",
+  "stationReadyAt": "2026-10-13T11:40:00+09:00",
+  "arriveBy": "2026-10-13T16:00:00+09:00",
+  "maxFareJPY": 15000
+}
+```
+
+This makes one provider search and returns the personal comparison in the same tool call.
+The departure-based query starts at `stationReadyAt` plus the effective boarding allowance;
+its date and time are derived in Asia/Tokyo, including when the allowance crosses midnight.
+It still requires an Ekispert Standard Plan key. Results identify `dataMode: "provider_search"`.
+An arrival deadline filters these departure-based candidates; it is not a backward timetable
+search. At most 20 provider candidates are considered. Returned train IDs, including excluded
+candidates, can be passed to `evaluate_train_options` to change preferences without another
+provider request. Changing the route or requesting trains outside that set requires a new search.
+
+### Saved local preferences
+
+Save a JSON file at `~/.config/japan-rail-mcp/preferences.json`, or set
+`JAPAN_RAIL_PREFERENCES_FILE` to its path. The file is read once at startup, so restart the server
+after editing it. No MCP tool writes the file. The optional default file may be absent; an
+explicitly configured missing file, malformed JSON, unknown setting, or invalid value fails startup
+rather than silently ignoring your preferences. Personal settings should stay outside this repository.
+
+```json
+{
+  "defaults": {
+    "boardingBufferMinutes": 10,
+    "exitBufferMinutes": 5,
+    "seatClassId": "reserved"
+  },
+  "stations": {
+    "jp:station:tokyo": {
+      "boardingBufferMinutes": 15,
+      "exitBufferMinutes": 10
+    }
+  }
+}
+```
+
+Both planning tools apply **built-in defaults → saved global defaults → station-specific
+allowances → explicit call values**. Only the origin station's boarding allowance and destination
+station's exit allowance apply. Global defaults support `boardingBufferMinutes`,
+`exitBufferMinutes`, `maxFareJPY`, and `seatClassId`; station entries support the two allowances.
+Explicit zero is respected. Set `maxFareJPY: null` or `seatClassId: null` in a call to clear the
+corresponding saved restriction. Saved preferences never include travel dates or deadlines.
+Use `get_personal_preferences` to inspect the loaded settings; effective constraints are included
+in every comparison result.
+
+Without saved or explicit allowances, the built-in boarding allowance is 10 minutes and the
+exit allowance is zero. Seat-class matching uses only a total explicitly associated with that
+class. The Ekispert parser links the selected seat class when its charge matches the charge
+summary; unselected seat-class prices are not automatically treated as complete fares.
+
+### Personal planning without repeated API calls
+
+After `search_trains` or `compare_trains`, pass the returned IDs to `evaluate_train_options`:
+
+```json
+{
+  "trainIds": ["<trainId returned by search_trains>"],
+  "stationReadyAt": "2026-10-13T11:50:00+09:00",
+  "boardingBufferMinutes": 10,
+  "exitBufferMinutes": 8,
+  "arriveBy": "2026-10-13T16:00:00+09:00",
+  "maxFareJPY": 15000,
+  "seatClassId": "reserved"
+}
+```
+
+The tool checks whether you can reach the departure platform with the specified boarding
+allowance and finish your destination-station exit allowance by the deadline. It returns
+feasible options, reasons for excluding other options, cheapest/shortest-ride/earliest-arrival
+picks, and the cheapest option's savings and arrival delay relative to the earliest option.
+Change your deadline, budget, or allowances and call it again with **zero additional provider
+requests**. Only concise option summaries are returned; full train records need not be sent back.
+
+This comparison uses an in-memory search snapshot in the same server process, retained for
+15 minutes and bounded to 200 train records. It does not persist across restarts, refresh the
+provider, or fall back to a paid request when an ID is missing/expired. Search again explicitly
+to obtain new results. Original provider provenance and retrieval times remain in every option;
+`evaluatedAt` is only the local comparison time. All supplied IDs must share the station pair
+and Japan-local departure date. Duplicate IDs are considered once.
+
+The built-in boarding allowance is 10 minutes; the built-in exit allowance is zero. These are
+editable personal allowances, **not measured station indoor travel times**. A requested seat
+class requires a total fare explicitly linked to that class. Unknown fares remain `null`, are
+never chosen as cheapest, and are excluded when a budget is specified. Prices do not include
+commuter-pass deductions or booking discounts, and seat-class fares do not prove seat availability.
+The picks cover only the supplied search candidates, not the whole day's timetable.
+
+`get_station_details` works without an API key and returns bundled names, operators, prefecture,
+Shinkansen lines, and provenance. It does not claim to provide indoor navigation.
 
 ## Data sources
 

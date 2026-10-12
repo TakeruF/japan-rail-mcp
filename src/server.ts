@@ -10,6 +10,8 @@ import {
   trainSchema,
 } from './core/schemas.js';
 import type { RailService } from './services/rail-service.js';
+import { trainOptionsSchema } from './services/train-options.js';
+import { personalInputShape, preferencesSchema } from './core/preferences.js';
 
 const date = z
   .string()
@@ -59,7 +61,7 @@ export function createServer(service: RailService): McpServer {
     { name: 'japan-rail-mcp', version: '0.1.0' },
     {
       instructions:
-        'Read-only Japanese railway data with a Shinkansen-first scope. Resolve station names with search_stations before train searches; never substitute an ambiguous city or station. search_trains returns direct Shinkansen services, while search_journeys is a separate capability. All travel dates must be explicit and all returned railway timestamps use Asia/Tokyo (+09:00). Availability is unsupported unless a provider can prove it. Verify important travel and fare details through an official railway channel and do not poll automatically.',
+        'Read-only Japanese railway data with a Shinkansen-first scope. Resolve station names with search_stations before train searches; never substitute an ambiguous city or station. For personal timing and budget questions, prefer plan_shinkansen_trip for a single provider search, then reuse returned IDs with evaluate_train_options for preference changes without another request. Saved local preferences apply unless explicitly overridden. search_trains returns direct Shinkansen services, while search_journeys is a separate capability. All travel dates must be explicit and all returned railway timestamps use Asia/Tokyo (+09:00). Availability is unsupported unless a provider can prove it. Verify important travel and fare details through an official railway channel and do not poll automatically.',
     },
   );
 
@@ -171,6 +173,66 @@ export function createServer(service: RailService): McpServer {
       annotations: readOnlyAnnotations,
     },
     async (input) => toolCall(() => service.searchJourneys(input)),
+  );
+
+  server.registerTool(
+    'get_station_details',
+    {
+      title: 'Get local station details',
+      description:
+        'Get bundled station metadata by canonical station ID, including Shinkansen lines and source. No API key or network request. Does not provide indoor routes or walking times.',
+      inputSchema: z.object({ stationId }),
+      outputSchema: stationSchema,
+      annotations: readOnlyAnnotations,
+    },
+    async (input) => toolCall(() => service.getStationDetails(input.stationId)),
+  );
+
+  server.registerTool(
+    'evaluate_train_options',
+    {
+      title: 'Evaluate trains with personal time and budget constraints',
+      description:
+        'After search_trains or compare_trains, compare up to 20 returned train IDs for the same route and date without another provider request. Applies station arrival time, boarding and exit allowances, arrival deadline, budget, and an optional exact seat-class fare. Returns cheapest, shortest ride, and earliest arrival picks plus exclusion reasons. Uses a session snapshot valid for 15 minutes; does not refresh schedules or verify availability. Reuse this tool to change preferences cheaply.',
+      inputSchema: z.object({
+        trainIds: z.array(z.string().min(1)).min(1).max(20),
+        ...personalInputShape,
+      }),
+      outputSchema: trainOptionsSchema,
+      annotations: readOnlyAnnotations,
+    },
+    async ({ trainIds, ...constraints }) =>
+      toolCall(() => service.evaluateSavedTrains(trainIds, constraints)),
+  );
+
+  server.registerTool(
+    'plan_shinkansen_trip',
+    {
+      title: 'Search and plan a personal Shinkansen trip',
+      description:
+        'After resolving both canonical station IDs, search once and compare direct Shinkansen trains with personal time, budget, and seat-class constraints. Omitted preferences use local defaults and station-specific allowances; explicit values override them, and null clears budget or seat-class defaults. Search starts at stationReadyAt plus boarding allowance; the Japan-local search date is derived from that timestamp. Departure-based search covers at most 20 candidates, not every train before an arrival deadline. Returned IDs can be re-evaluated locally for 15 minutes.',
+      inputSchema: z.object({
+        fromStationId: stationId,
+        toStationId: stationId,
+        ...personalInputShape,
+      }),
+      outputSchema: trainOptionsSchema,
+      annotations: readOnlyAnnotations,
+    },
+    async (input) => toolCall(() => service.planShinkansenTrip(input)),
+  );
+
+  server.registerTool(
+    'get_personal_preferences',
+    {
+      title: 'Read local personal planning preferences',
+      description:
+        'Read the preferences loaded at server startup: global defaults and station-specific boarding/exit allowances. No network request or file mutation. Edit the local preferences JSON and restart the server to change saved values. Per-call values override saved values.',
+      inputSchema: z.object({}),
+      outputSchema: preferencesSchema,
+      annotations: readOnlyAnnotations,
+    },
+    async () => toolCall(() => service.getPersonalPreferences()),
   );
 
   return server;

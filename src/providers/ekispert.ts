@@ -341,8 +341,24 @@ function parsePrices(value: unknown): { fares: Fare[]; seatClasses: SeatClass[] 
   const chargeAmount = number(chargeSummary?.Oneway);
   if (baseAmount !== undefined) fares.push(fare(baseAmount, 'base'));
   if (chargeAmount !== undefined) fares.push(fare(chargeAmount, 'limited_express'));
-  if (baseAmount !== undefined || chargeAmount !== undefined) {
-    fares.push(fare((baseAmount ?? 0) + (chargeAmount ?? 0), 'total'));
+  if (baseAmount !== undefined && chargeAmount !== undefined) {
+    const selectedCharges = prices.filter(
+      (price) =>
+        text(price.kind) === 'Charge' &&
+        (price.selected === true || text(price.selected) === 'true'),
+    );
+    const selected = selectedCharges.length === 1 ? selectedCharges[0] : undefined;
+    const providerType = selected
+      ? (text(selected.Type) ?? text(recordOrEmpty(selected.SeatType).Type))
+      : undefined;
+    const seatClassId =
+      providerType && number(selected?.Oneway) === chargeAmount
+        ? normalizeSeatClass(providerType).id
+        : undefined;
+    fares.push({
+      ...fare(baseAmount + chargeAmount, 'total'),
+      ...(seatClassId === undefined ? {} : { seatClassId }),
+    });
   }
   const seatClasses = new Map<string, SeatClass>();
   for (const price of prices.filter((item) => text(item.kind) === 'Charge')) {

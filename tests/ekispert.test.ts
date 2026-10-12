@@ -75,7 +75,12 @@ describe('Ekispert Shinkansen provider', () => {
     });
     expect(result.trains[0]?.fares).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ amount: 14720, currency: 'JPY', kind: 'total' }),
+        expect.objectContaining({
+          amount: 14720,
+          currency: 'JPY',
+          kind: 'total',
+          seatClassId: 'reserved',
+        }),
       ]),
     );
     expect(result.trains[0]?.seatClasses).toEqual(
@@ -92,6 +97,25 @@ describe('Ekispert Shinkansen provider', () => {
       '新大阪',
     ]);
     expect(() => trainDetailsSchema.parse(result.details[0])).not.toThrow();
+  });
+
+  it('does not label an incomplete fare as a total or assign an unverified seat class', async () => {
+    const from = await stations.getStation('jp:station:tokyo');
+    const to = await stations.getStation('jp:station:shin-osaka');
+    const payload = JSON.parse(JSON.stringify(fixture)) as {
+      ResultSet: { Course: { Price: unknown[] }[] };
+    };
+    payload.ResultSet.Course[0]!.Price = [{ kind: 'FareSummary', Oneway: '8910' }];
+    payload.ResultSet.Course[1]!.Price = [
+      { kind: 'FareSummary', Oneway: '8910' },
+      { kind: 'ChargeSummary', Oneway: '5490' },
+      { kind: 'Charge', selected: 'true', Type: 'Green', Oneway: '10000' },
+    ];
+    const result = parseEkispertCourses(payload, { from, to, date: '2026-08-26', now: now() });
+    expect(result.trains[0]!.fares.some((fare) => fare.kind === 'total')).toBe(false);
+    expect(
+      result.trains[1]!.fares.find((fare) => fare.kind === 'total')?.seatClassId,
+    ).toBeUndefined();
   });
 
   it('sends an explicit midnight rather than inferring the current time', async () => {

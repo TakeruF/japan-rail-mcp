@@ -2,6 +2,7 @@ import { RailError } from './core/errors.js';
 import { EkispertProvider } from './providers/ekispert.js';
 import { StaticShinkansenStationProvider } from './providers/static/station-provider.js';
 import { RailService } from './services/rail-service.js';
+import { loadPersonalPreferences } from './core/preferences.js';
 
 export function createDefaultService(env: NodeJS.ProcessEnv = process.env): RailService {
   const stations = new StaticShinkansenStationProvider();
@@ -10,7 +11,7 @@ export function createDefaultService(env: NodeJS.ProcessEnv = process.env): Rail
     ...(env.EKISPERT_API_KEY === undefined ? {} : { apiKey: env.EKISPERT_API_KEY }),
     ...(baseUrl === undefined ? {} : { baseUrl }),
   });
-  return new RailService(stations, rail);
+  return new RailService(stations, rail, () => new Date(), loadPersonalPreferences(env));
 }
 
 function validateBaseUrl(value: string | undefined): string | undefined {

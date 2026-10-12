@@ -42,6 +42,10 @@ describe('MCP server contracts', () => {
       'get_availability',
       'compare_trains',
       'search_journeys',
+      'get_station_details',
+      'evaluate_train_options',
+      'plan_shinkansen_trip',
+      'get_personal_preferences',
     ]);
     expect(result.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
     expect(result.tools.every((tool) => tool.annotations?.destructiveHint === false)).toBe(true);
@@ -60,6 +64,27 @@ describe('MCP server contracts', () => {
         expect.objectContaining({ id: 'jp:station:shin-osaka' }),
       ]),
     });
+  });
+
+  it('gets exact bundled station metadata without a configured key', async () => {
+    const result = await client.callTool({
+      name: 'get_station_details',
+      arguments: { stationId: 'jp:station:tokyo' },
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      id: 'jp:station:tokyo',
+      extensions: { japan: { shinkansenLines: expect.arrayContaining(['Tokaido Shinkansen']) } },
+    });
+  });
+
+  it('requires saved search IDs for local evaluation, without falling back to provider access', async () => {
+    const result = await client.callTool({
+      name: 'evaluate_train_options',
+      arguments: { trainIds: ['invented'], stationReadyAt: '2026-08-26T12:00:00+09:00' },
+    });
+    expect(result.isError).toBe(true);
+    expect(parseText(result)).toMatchObject({ code: 'TRAIN_NOT_FOUND' });
   });
 
   it('returns a structured unsupported error instead of a fixture timetable', async () => {
